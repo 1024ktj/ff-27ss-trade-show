@@ -368,13 +368,14 @@ const styleKeMap = (function() {
   return m;
 })();
 
+const KR_DEADLINE = '2026-04-15';
+const KR_WARN_START = '2026-04-11';
+const KR_NORMAL_END = '2026-04-10';
 function isDelayed(d) {
-  return d.ke && d.ke < TODAY && !d.ka;
+  return d.ke && d.ke > KR_DEADLINE && !d.ka;
 }
 function isWarn(d) {
-  const warn14 = new Date(TODAY); warn14.setDate(warn14.getDate()+14);
-  const warnStr = warn14.toISOString().slice(0,10);
-  return !d.ka && d.ke && d.ke >= TODAY && d.ke <= warnStr;
+  return !d.ka && d.ke && d.ke >= KR_WARN_START && d.ke <= KR_DEADLINE;
 }
 function isTbd(d) { return !d.ke && !d.ka; }
 function hasQty(d) { return d.sq > 0 || d.lq > 0 || d.tq > 0; }
@@ -876,7 +877,7 @@ function renderDetail() {
     const effKe = d.ke || styleKeMap[d.sc] || '';
     if(statusFilter==='pending'    && d.ka) return false;
     if(statusFilter==='arrived'    && !d.ka) return false;
-    if(statusFilter==='kr_delayed' && !(effKe && effKe < TODAY && !d.ka)) return false;
+    if(statusFilter==='kr_delayed' && !(effKe && effKe > KR_DEADLINE && !d.ka)) return false;
     if(statusFilter==='tbd'        && effKe) return false;
     if(sortF && d.so!==sortF) return false;
     if(vendF && d.vd!==vendF) return false;
@@ -889,20 +890,17 @@ function renderDetail() {
   document.getElementById('detail-badge').textContent = rows.length+'건';
   document.getElementById('row-cnt').textContent = '총 '+rows.length+'건 표시 중';
 
-  const warn14 = new Date(TODAY); warn14.setDate(warn14.getDate()+14);
-  const warnStr = warn14.toISOString().slice(0,10);
-
   let html = '';
   rows.forEach((d, i) => {
     const effKe = d.ke || styleKeMap[d.sc] || '';
     const isFallback = !d.ke && !!effKe;
-    const delayed = effKe && effKe < TODAY && !d.ka;
+    const delayed = effKe && effKe > KR_DEADLINE && !d.ka;
     const tbd = !effKe && !d.ka;
-    const warn = !d.ka && effKe && effKe >= TODAY && effKe <= warnStr;
+    const warn = !d.ka && effKe && effKe >= KR_WARN_START && effKe <= KR_DEADLINE;
     const rowCls = delayed ? 'row-delayed' : tbd ? 'row-tbd' : '';
     const rkText = d.rk ? `<span style="background:#fed7aa;color:#c2410c;padding:1px 5px;border-radius:4px;font-size:11px;font-weight:700">${d.rk}</span>` : '';
     const rmText = d.rm ? `<span style="background:#fef3c7;color:#92400e;padding:1px 5px;border-radius:4px;font-size:11px">${d.rm}</span>` : '';
-    const keColor = effKe ? (effKe < TODAY ? '#f87171' : 'var(--text)') : 'var(--muted)';
+    const keColor = effKe ? (effKe > KR_DEADLINE && !d.ka ? '#f87171' : effKe >= KR_WARN_START && effKe <= KR_DEADLINE && !d.ka ? '#f59e0b' : 'var(--text)') : 'var(--muted)';
     const keDisplay = effKe ? (isFallback ? `${effKe}<span style="font-size:10px;color:var(--muted);margin-left:2px">*</span>` : effKe) : '미정';
     let badge;
     if(delayed)   badge = '<span class="badge-delay">KR 지연</span>';
