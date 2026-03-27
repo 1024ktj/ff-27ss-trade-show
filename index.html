@@ -138,6 +138,19 @@ tbody td.muted { color:var(--muted); }
 .f-btn.active { background:linear-gradient(90deg,var(--primary),var(--primary2)); border-color:transparent; color:#fff; }
 .f-select,.f-input { background:var(--card); border:1.5px solid var(--border); color:var(--text); padding:6px 11px; border-radius:8px; font-size:12px; outline:none; font-family:inherit; }
 .f-select:focus,.f-input:focus { border-color:var(--primary); }
+.multi-select { position:relative; display:inline-block; }
+.ms-btn { background:var(--card); border:1.5px solid var(--border); color:var(--text); padding:6px 12px; border-radius:8px; font-size:12px; font-family:inherit; cursor:pointer; display:flex; align-items:center; gap:6px; white-space:nowrap; min-width:100px; transition:border-color 0.15s; }
+.ms-btn:hover,.ms-btn.open { border-color:var(--primary); }
+.ms-btn .ms-arrow { font-size:9px; color:var(--muted); margin-left:auto; }
+.ms-btn .ms-count { background:var(--primary); color:#fff; font-size:10px; font-weight:700; padding:1px 6px; border-radius:8px; }
+.ms-drop { position:absolute; top:calc(100% + 4px); left:0; min-width:200px; max-height:260px; overflow-y:auto; background:var(--card); border:1.5px solid var(--border); border-radius:10px; box-shadow:var(--shadow-lg); z-index:100; display:none; padding:4px 0; }
+.ms-drop.open { display:block; }
+.ms-drop label { display:flex; align-items:center; gap:8px; padding:6px 12px; font-size:12px; cursor:pointer; transition:background 0.1s; }
+.ms-drop label:hover { background:#f5f7fc; }
+.ms-drop input[type=checkbox] { accent-color:var(--primary); width:14px; height:14px; cursor:pointer; }
+.ms-drop .ms-divider { border-top:1px solid var(--border); margin:2px 0; }
+.f-reset { background:none; border:1.5px solid var(--border); color:var(--muted); padding:6px 12px; border-radius:8px; font-size:12px; font-family:inherit; cursor:pointer; transition:all 0.15s; }
+.f-reset:hover { border-color:#f87171; color:#f87171; }
 .detail-wrap { border-radius:14px; border:1px solid var(--border); overflow:hidden; box-shadow:var(--shadow); }
 .detail-scroll { overflow-x:auto; max-height:480px; overflow-y:auto; }
 .detail-tbl { width:100%; border-collapse:collapse; font-size:12px; }
@@ -302,20 +315,24 @@ tbody td.muted { color:var(--muted); }
       <button class="f-btn" onclick="setStatusFilter('arrived',this)">입고완료</button>
       <button class="f-btn" id="btn-kr-delayed" onclick="setStatusFilter('kr_delayed',this)">KR 지연</button>
       <button class="f-btn" id="btn-tbd" onclick="setStatusFilter('tbd',this)">ETA 미정</button>
-      <select class="f-select" id="f-sort" onchange="renderDetail()">
-        <option value="">카테고리 전체</option>
-        <option>KNIT</option><option>WOVEN</option><option>DENIM</option>
-      </select>
-      <select class="f-select" id="f-vendor" onchange="renderDetail()">
-        <option value="">벤더 전체</option>
-      </select>
-      <select class="f-select" id="f-designer" onchange="renderDetail()">
-        <option value="">디자이너 전체</option>
-      </select>
-      <select class="f-select" id="f-item" onchange="renderDetail()">
-        <option value="">ITEM 전체</option>
-      </select>
+      <div class="multi-select" id="ms-sort">
+        <button class="ms-btn" onclick="toggleDrop('ms-sort')"><span class="ms-label">카테고리 전체</span><span class="ms-arrow">&#9660;</span></button>
+        <div class="ms-drop" id="ms-sort-drop"></div>
+      </div>
+      <div class="multi-select" id="ms-vendor">
+        <button class="ms-btn" onclick="toggleDrop('ms-vendor')"><span class="ms-label">벤더 전체</span><span class="ms-arrow">&#9660;</span></button>
+        <div class="ms-drop" id="ms-vendor-drop"></div>
+      </div>
+      <div class="multi-select" id="ms-designer">
+        <button class="ms-btn" onclick="toggleDrop('ms-designer')"><span class="ms-label">디자이너 전체</span><span class="ms-arrow">&#9660;</span></button>
+        <div class="ms-drop" id="ms-designer-drop"></div>
+      </div>
+      <div class="multi-select" id="ms-item">
+        <button class="ms-btn" onclick="toggleDrop('ms-item')"><span class="ms-label">ITEM 전체</span><span class="ms-arrow">&#9660;</span></button>
+        <div class="ms-drop" id="ms-item-drop"></div>
+      </div>
       <input class="f-input" id="f-search" placeholder="품번 · SKU 검색..." oninput="renderDetail()" style="min-width:170px;">
+      <button class="f-reset" onclick="resetAllFilters()">전체 초기화</button>
     </div>
     <div class="detail-wrap">
       <div class="detail-scroll">
@@ -874,8 +891,10 @@ function switchTab(name) {
   });
 })();
 
-// Detail list
+// Detail list - Multi-select filters
 let statusFilter = 'all';
+const msState = { sort:new Set(), vendor:new Set(), designer:new Set(), item:new Set() };
+
 function setStatusFilter(f, el) {
   statusFilter = f;
   document.querySelectorAll('.f-btn').forEach(b=>b.classList.remove('active'));
@@ -883,23 +902,64 @@ function setStatusFilter(f, el) {
   renderDetail();
 }
 
+function buildDropdown(id, values) {
+  const drop = document.getElementById('ms-'+id+'-drop');
+  drop.innerHTML = values.map(v =>
+    '<label><input type="checkbox" value="'+v.replace(/"/g,'&quot;')+'" onchange="onMsChange(\''+id+'\')">'+v+'</label>'
+  ).join('');
+}
+
+function toggleDrop(msId) {
+  const drop = document.getElementById(msId+'-drop');
+  const btn = document.querySelector('#'+msId+' .ms-btn');
+  const isOpen = drop.classList.contains('open');
+  closeAllDropdowns();
+  if(!isOpen) { drop.classList.add('open'); btn.classList.add('open'); }
+}
+
+function closeAllDropdowns() {
+  document.querySelectorAll('.ms-drop').forEach(d=>d.classList.remove('open'));
+  document.querySelectorAll('.ms-btn').forEach(b=>b.classList.remove('open'));
+}
+
+document.addEventListener('click', function(e) {
+  if(!e.target.closest('.multi-select')) closeAllDropdowns();
+});
+
+function onMsChange(id) {
+  const drop = document.getElementById('ms-'+id+'-drop');
+  msState[id] = new Set([...drop.querySelectorAll('input:checked')].map(c=>c.value));
+  updateMsLabel(id);
+  renderDetail();
+}
+
+function updateMsLabel(id) {
+  const names = {sort:'카테고리', vendor:'벤더', designer:'디자이너', item:'ITEM'};
+  const btn = document.querySelector('#ms-'+id+' .ms-label');
+  const cnt = msState[id].size;
+  btn.innerHTML = cnt === 0 ? names[id]+' 전체' : names[id]+' <span class="ms-count">'+cnt+'개 선택</span>';
+}
+
+function resetAllFilters() {
+  Object.keys(msState).forEach(id => {
+    msState[id].clear();
+    document.getElementById('ms-'+id+'-drop').querySelectorAll('input:checked').forEach(c=>{ c.checked=false; });
+    updateMsLabel(id);
+  });
+  statusFilter = 'all';
+  document.querySelectorAll('.f-btn').forEach((b,i)=>b.classList.toggle('active', i===0));
+  document.getElementById('f-search').value = '';
+  renderDetail();
+}
+
 (function initFilters() {
-  const vendors   = [...new Set(RAW_DATA.map(d=>d.vd).filter(Boolean))].sort();
-  const designers = [...new Set(RAW_DATA.map(d=>d.de).filter(Boolean))].sort();
-  const items     = [...new Set(RAW_DATA.map(d=>d.it).filter(Boolean))].sort();
-  const sel_v = document.getElementById('f-vendor');
-  const sel_d = document.getElementById('f-designer');
-  const sel_i = document.getElementById('f-item');
-  vendors.forEach(v=>{ const o=document.createElement('option'); o.value=v; o.textContent=v; sel_v.appendChild(o); });
-  designers.forEach(d=>{ const o=document.createElement('option'); o.value=d; o.textContent=d; sel_d.appendChild(o); });
-  items.forEach(i=>{ const o=document.createElement('option'); o.value=i; o.textContent=i; sel_i.appendChild(o); });
+  buildDropdown('sort', ['KNIT','WOVEN','DENIM']);
+  buildDropdown('vendor', [...new Set(RAW_DATA.map(d=>d.vd).filter(Boolean))].sort());
+  buildDropdown('designer', [...new Set(RAW_DATA.map(d=>d.de).filter(Boolean))].sort());
+  buildDropdown('item', [...new Set(RAW_DATA.map(d=>d.it).filter(Boolean))].sort());
 })();
 
 function renderDetail() {
-  const sortF   = document.getElementById('f-sort').value;
-  const vendF   = document.getElementById('f-vendor').value;
-  const desgF   = document.getElementById('f-designer').value;
-  const itemF   = document.getElementById('f-item').value;
   const searchF = document.getElementById('f-search').value.toLowerCase();
 
   let rows = RAW_DATA.filter(d => {
@@ -909,10 +969,10 @@ function renderDetail() {
     if(statusFilter==='arrived'    && !d.ka) return false;
     if(statusFilter==='kr_delayed' && !(effKe && effKe > KR_DEADLINE && !d.ka)) return false;
     if(statusFilter==='tbd'        && effKe) return false;
-    if(sortF && d.so!==sortF) return false;
-    if(vendF && d.vd!==vendF) return false;
-    if(desgF && d.de!==desgF) return false;
-    if(itemF && d.it!==itemF) return false;
+    if(msState.sort.size > 0 && !msState.sort.has(d.so)) return false;
+    if(msState.vendor.size > 0 && !msState.vendor.has(d.vd)) return false;
+    if(msState.designer.size > 0 && !msState.designer.has(d.de)) return false;
+    if(msState.item.size > 0 && !msState.item.has(d.it)) return false;
     if(searchF && !d.sc.toLowerCase().includes(searchF) && !d.sku.toLowerCase().includes(searchF)) return false;
     return true;
   });
