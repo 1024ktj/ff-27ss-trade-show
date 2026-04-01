@@ -238,6 +238,53 @@ tbody td.muted { color:var(--muted); }
     </div>
   </div>
 
+  <!-- 📊 일별 누적 서머리 -->
+  <div class="card" style="margin-bottom:24px;">
+    <div class="sec-title insight-toggle" onclick="toggleDailySummary()" style="cursor:pointer;user-select:none;">
+      <span>📊 일별 누적 서머리 <span class="tag">KR 입고</span></span>
+      <span class="toggle-arrow" id="daily-summary-arrow">▲ 접기</span>
+    </div>
+    <div class="insight-body open" id="daily-summary-body" style="max-height:2000px;">
+      <div class="filter-bar" id="ds-filters" style="margin-bottom:12px;flex-wrap:wrap;gap:8px;align-items:center;">
+        <span style="font-size:11px;font-weight:700;color:var(--muted);margin-right:4px;">STATUS</span>
+        <button class="f-btn active" onclick="setDsStatus('all',this)">전체</button>
+        <button class="f-btn" onclick="setDsStatus('done',this)">완료만</button>
+        <button class="f-btn" onclick="setDsStatus('expected',this)">예정만</button>
+        <span style="width:1px;height:20px;background:var(--border);margin:0 6px;"></span>
+        <span style="font-size:11px;font-weight:700;color:var(--muted);margin-right:4px;">카테고리</span>
+        <button class="f-btn active" onclick="setDsCat('all',this)">전체</button>
+        <button class="f-btn" onclick="setDsCat('KNIT',this)">KNIT</button>
+        <button class="f-btn" onclick="setDsCat('WOVEN',this)">WOVEN</button>
+        <button class="f-btn" onclick="setDsCat('DENIM',this)">DENIM</button>
+        <span style="width:1px;height:20px;background:var(--border);margin:0 6px;"></span>
+        <div class="multi-select" id="ms-ds-item">
+          <button class="ms-btn" onclick="toggleDrop('ms-ds-item')"><span class="ms-label">ITEM 전체</span><span class="ms-arrow">▼</span></button>
+          <div class="ms-drop" id="ms-ds-item-drop" style="background:#fff;"></div>
+        </div>
+        <label style="font-size:12px;display:flex;align-items:center;gap:4px;cursor:pointer;color:var(--muted);font-weight:600;">
+          <input type="checkbox" id="ds-hide-past" onchange="renderDailySummary()" style="accent-color:var(--primary);"> 지난 날짜 숨기기
+        </label>
+      </div>
+      <div class="detail-wrap">
+        <div class="detail-scroll" style="max-height:420px;">
+          <table class="detail-tbl" id="ds-table">
+            <thead><tr>
+              <th style="background:#d1fae5;color:#065f46;">한국입고일</th>
+              <th style="background:#d1fae5;color:#065f46;">STATUS</th>
+              <th style="background:#d1fae5;color:#065f46;">누적 모델</th>
+              <th style="background:#d1fae5;color:#065f46;">누적 SKU</th>
+              <th style="background:#d1fae5;color:#065f46;">누적 수량</th>
+              <th style="background:#d1fae5;color:#065f46;">모델 누적%</th>
+              <th style="background:#d1fae5;color:#065f46;">수량 누적%</th>
+            </tr></thead>
+            <tbody id="ds-tbody"></tbody>
+            <tfoot id="ds-tfoot"></tfoot>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- 카테고리 진행률 + 타임라인 -->
   <div class="grid-2">
     <div class="card">
@@ -620,22 +667,22 @@ function renderKrDist() {
     cum += cnt;
     const act = actDist[dt] || 0;
     cumAct += act;
-    const pct = Math.round(cnt/maxCnt*100);
-    const actPct = Math.round(act/maxCnt*100);
-    const cumPct = totalWithEta > 0 ? Math.round(cum/totalWithEta*100) : 0;
-    const cumActPct = totalWithEta > 0 ? Math.round(cumAct/totalWithEta*100) : 0;
-    const achRate = cnt > 0 ? Math.round(act/cnt*100) : 0;
+    const cumBarPct = totalWithEta > 0 ? Math.round(cum/totalWithEta*100) : 0;
+    const cumActBarPct = totalWithEta > 0 ? Math.round(cumAct/totalWithEta*100) : 0;
+    const cumPct = cumBarPct;
+    const cumActPct = cumActBarPct;
+    const achRate = cum > 0 ? Math.round(cumAct/cum*100) : 0;
     const diffPct = cumActPct - cumPct;
     const isPast = dt < TODAY;
     const bColor = isPast ? '#94a3b8' : '#5b7fd4';
     html += `<div style="display:grid;grid-template-columns:70px 1fr 100px 90px 100px;gap:4px 8px;align-items:center;padding:5px 0;border-bottom:1px solid #f0f2fb">
       <div style="font-size:12px;font-weight:600;color:${isPast?'var(--muted)':'var(--text)'}">${dt.slice(5)}</div>
       <div style="position:relative;height:18px">
-        <div style="position:absolute;top:0;left:0;height:8px;width:${pct}%;background:${bColor};border-radius:4px;opacity:0.7"></div>
-        <div style="position:absolute;top:10px;left:0;height:8px;width:${actPct}%;background:#34d399;border-radius:4px"></div>
+        <div style="position:absolute;top:0;left:0;height:8px;width:${cumBarPct}%;background:${bColor};border-radius:4px;opacity:0.7"></div>
+        <div style="position:absolute;top:10px;left:0;height:8px;width:${cumActBarPct}%;background:#34d399;border-radius:4px"></div>
       </div>
-      <div style="text-align:right;font-size:12px"><span style="font-weight:700">${cnt}M</span> <span style="color:var(--muted);font-size:11px">(${cumPct}%)</span></div>
-      <div style="text-align:right;font-size:12px"><span style="font-weight:700;color:#059669">${act}M</span> <span style="color:var(--muted);font-size:11px">(${cumActPct}%)</span></div>
+      <div style="text-align:right;font-size:12px"><span style="font-weight:700">${cum}M</span> <span style="color:var(--muted);font-size:11px">(${cumPct}%)</span></div>
+      <div style="text-align:right;font-size:12px"><span style="font-weight:700;color:#059669">${cumAct}M</span> <span style="color:var(--muted);font-size:11px">(${cumActPct}%)</span></div>
       <div style="text-align:right;font-size:12px"><span style="font-weight:700;color:${achRate>=100?'#059669':achRate>0?'#d97706':'var(--muted)'}">${achRate}%</span> <span style="font-size:10px;color:${diffPct>=0?'#059669':'#dc2626'}">${diffPct>=0?'+':''}${diffPct}%</span></div>
     </div>`;
   });
@@ -1020,6 +1067,266 @@ function renderDetail() {
   document.getElementById('detail-tbody').innerHTML = html;
 }
 renderDetail();
+
+// ===== 📊 일별 누적 서머리 =====
+let dsStatus = 'all';
+let dsCat = 'all';
+let dsItemSet = null; // null = all
+
+function toggleDailySummary() {
+  const body = document.getElementById('daily-summary-body');
+  const arrow = document.getElementById('daily-summary-arrow');
+  body.classList.toggle('open');
+  arrow.innerHTML = body.classList.contains('open') ? '▲ 접기' : '▼ 펼치기';
+}
+
+function setDsStatus(val, el) {
+  dsStatus = val;
+  el.parentNode.querySelectorAll('.f-btn').forEach((b,i) => {
+    if(i < 3) b.classList.remove('active');
+  });
+  el.classList.add('active');
+  renderDailySummary();
+}
+
+function setDsCat(val, el) {
+  dsCat = val;
+  const btns = el.parentNode.querySelectorAll('.f-btn');
+  // category buttons are index 3-6
+  let catIdx = 0;
+  btns.forEach(b => {
+    if(['전체','KNIT','WOVEN','DENIM'].includes(b.textContent.trim())) {
+      b.classList.remove('active');
+    }
+  });
+  el.classList.add('active');
+  renderDailySummary();
+}
+
+// ITEM multi-select for daily summary
+(function initDsItemFilter() {
+  const items = [...new Set(RAW_DATA.map(d => d.it))].sort();
+  const drop = document.getElementById('ms-ds-item-drop');
+  let html = '<label style="font-weight:700;border-bottom:1px solid var(--border);"><input type="checkbox" checked onchange="dsMsToggleAll(this)"> 전체선택</label>';
+  html += '<div class="ms-divider"></div>';
+  items.forEach(it => {
+    html += `<label><input type="checkbox" checked value="${it}" onchange="dsMsItemChange()"> ${it}</label>`;
+  });
+  drop.innerHTML = html;
+})();
+
+function dsMsToggleAll(cb) {
+  const drop = document.getElementById('ms-ds-item-drop');
+  drop.querySelectorAll('input[type=checkbox]').forEach(c => c.checked = cb.checked);
+  dsMsItemChange();
+}
+
+function dsMsItemChange() {
+  const drop = document.getElementById('ms-ds-item-drop');
+  const cbs = [...drop.querySelectorAll('input[type=checkbox][value]')];
+  const checked = cbs.filter(c => c.checked).map(c => c.value);
+  const allCb = drop.querySelector('input[type=checkbox]:not([value])');
+  if(allCb) allCb.checked = checked.length === cbs.length;
+  dsItemSet = checked.length === cbs.length ? null : new Set(checked);
+  const label = document.querySelector('#ms-ds-item .ms-label');
+  if(dsItemSet) {
+    label.innerHTML = `ITEM <span class="ms-count">${checked.length}</span>`;
+  } else {
+    label.textContent = 'ITEM 전체';
+  }
+  renderDailySummary();
+}
+
+// Date column header click filter
+let dsDateSet = null; // null = all
+let dsDatePopupOpen = false;
+
+function openDsDateFilter(ev) {
+  ev.stopPropagation();
+  if(dsDatePopupOpen) { closeDsDateFilter(); return; }
+  // Build all dates from current filtered data
+  const rows = getDailySummaryRows();
+  const dates = rows.map(r => r.date);
+
+  let existing = document.getElementById('ds-date-popup');
+  if(existing) existing.remove();
+
+  const popup = document.createElement('div');
+  popup.id = 'ds-date-popup';
+  popup.style.cssText = 'position:absolute;top:100%;left:0;min-width:180px;max-height:300px;overflow-y:auto;background:#fff;border:1.5px solid var(--border);border-radius:10px;box-shadow:0 6px 24px rgba(91,127,212,0.14);z-index:200;padding:4px 0;';
+  popup.onclick = e => e.stopPropagation();
+
+  let html = '<label style="display:flex;align-items:center;gap:8px;padding:6px 12px;font-size:12px;cursor:pointer;font-weight:700;border-bottom:1px solid var(--border);"><input type="checkbox" ' + (dsDateSet === null ? 'checked' : '') + ' onchange="dsDateToggleAll(this)" style="accent-color:var(--primary);width:14px;height:14px;"> 전체선택</label>';
+  dates.forEach(dt => {
+    const checked = dsDateSet === null || dsDateSet.has(dt);
+    html += `<label style="display:flex;align-items:center;gap:8px;padding:6px 12px;font-size:12px;cursor:pointer;"><input type="checkbox" ${checked?'checked':''} value="${dt}" onchange="dsDateCheckChange()" style="accent-color:var(--primary);width:14px;height:14px;"> ${dt}</label>`;
+  });
+  popup.innerHTML = html;
+
+  const th = ev.currentTarget;
+  th.style.position = 'relative';
+  th.appendChild(popup);
+  dsDatePopupOpen = true;
+
+  const closeHandler = () => { closeDsDateFilter(); document.removeEventListener('click', closeHandler); };
+  setTimeout(() => document.addEventListener('click', closeHandler), 0);
+}
+
+function closeDsDateFilter() {
+  const popup = document.getElementById('ds-date-popup');
+  if(popup) popup.remove();
+  dsDatePopupOpen = false;
+}
+
+function dsDateToggleAll(cb) {
+  const popup = document.getElementById('ds-date-popup');
+  popup.querySelectorAll('input[type=checkbox]').forEach(c => c.checked = cb.checked);
+  dsDateCheckChange();
+}
+
+function dsDateCheckChange() {
+  const popup = document.getElementById('ds-date-popup');
+  const cbs = [...popup.querySelectorAll('input[type=checkbox][value]')];
+  const checked = cbs.filter(c => c.checked).map(c => c.value);
+  const allCb = popup.querySelector('input[type=checkbox]:not([value])');
+  if(allCb) allCb.checked = checked.length === cbs.length;
+  dsDateSet = checked.length === cbs.length ? null : new Set(checked);
+  renderDailySummary();
+}
+
+function getDailySummaryRows() {
+  // Filter RAW_DATA by category and item
+  let filtered = RAW_DATA.slice();
+  if(dsCat !== 'all') filtered = filtered.filter(d => d.so === dsCat);
+  if(dsItemSet) filtered = filtered.filter(d => dsItemSet.has(d.it));
+
+  // Build date-grouped rows
+  // Each row: date, status (입고 완료 or 입고 예정), models set, skuCount, qtySum
+  const dateMap = {}; // key: date+'|'+status
+
+  filtered.forEach(d => {
+    let date, status;
+    if(d.ka) {
+      date = d.ka;
+      status = '입고 완료';
+    } else {
+      date = d.ke || null;
+      status = '입고 예정';
+      if(!date) return; // no date at all, skip
+    }
+
+    // Apply status filter
+    if(dsStatus === 'done' && status !== '입고 완료') return;
+    if(dsStatus === 'expected' && status !== '입고 예정') return;
+
+    const key = date + '|' + status;
+    if(!dateMap[key]) dateMap[key] = { date, status, models: new Set(), skuCount: 0, qty: 0 };
+    dateMap[key].models.add(d.sc);
+    dateMap[key].skuCount++;
+    dateMap[key].qty += d.tq;
+  });
+
+  // Sort by date, then status (완료 before 예정 for same date)
+  const rows = Object.values(dateMap).sort((a, b) => {
+    if(a.date < b.date) return -1;
+    if(a.date > b.date) return 1;
+    if(a.status === '입고 완료' && b.status === '입고 예정') return -1;
+    if(a.status === '입고 예정' && b.status === '입고 완료') return 1;
+    return 0;
+  });
+
+  return rows;
+}
+
+function renderDailySummary() {
+  let filtered = RAW_DATA.slice();
+  if(dsCat !== 'all') filtered = filtered.filter(d => d.so === dsCat);
+  if(dsItemSet) filtered = filtered.filter(d => dsItemSet.has(d.it));
+
+  // Apply status filter to get totals
+  let statusFiltered = filtered.slice();
+  if(dsStatus === 'done') statusFiltered = statusFiltered.filter(d => d.ka);
+  if(dsStatus === 'expected') statusFiltered = statusFiltered.filter(d => !d.ka && d.ke);
+
+  const totalModels = new Set(statusFiltered.map(d => d.sc)).size;
+  const totalQty = statusFiltered.reduce((s, d) => s + d.tq, 0);
+
+  const rows = getDailySummaryRows();
+  const hidePast = document.getElementById('ds-hide-past').checked;
+
+  let cumModels = new Set();
+  let cumSku = 0;
+  let cumQty = 0;
+
+  let html = '';
+  let displayRows = [];
+
+  rows.forEach(row => {
+    row.models.forEach(m => cumModels.add(m));
+    cumSku += row.skuCount;
+    cumQty += row.qty;
+
+    const cumModelCount = cumModels.size;
+    const modelPct = totalModels > 0 ? (cumModelCount / totalModels * 100).toFixed(1) : '0.0';
+    const qtyPct = totalQty > 0 ? (cumQty / totalQty * 100).toFixed(1) : '0.0';
+
+    displayRows.push({
+      date: row.date,
+      status: row.status,
+      cumModel: cumModelCount,
+      cumSku: cumSku,
+      cumQty: cumQty,
+      modelPct: modelPct,
+      qtyPct: qtyPct,
+      isPast: row.date < TODAY
+    });
+  });
+
+  displayRows.forEach(r => {
+    if(hidePast && r.isPast) return;
+    if(dsDateSet && !dsDateSet.has(r.date)) return;
+
+    const bgColor = r.status === '입고 완료' ? '#fff' : '#f8f9fa';
+    const statusBadge = r.status === '입고 완료'
+      ? '<span class="badge-done">입고 완료</span>'
+      : '<span class="badge-pending">입고 예정</span>';
+
+    html += `<tr style="background:${bgColor};">
+      <td style="font-weight:600;">${r.date}</td>
+      <td style="text-align:center;">${statusBadge}</td>
+      <td style="text-align:center;font-weight:700;">${r.cumModel.toLocaleString()}</td>
+      <td style="text-align:center;font-weight:700;">${r.cumSku.toLocaleString()}</td>
+      <td style="text-align:center;font-weight:700;">${r.cumQty.toLocaleString()}</td>
+      <td style="text-align:center;"><div class="mini-wrap"><div class="mini-bar"><div class="mini-fill" style="width:${r.modelPct}%;background:var(--success);"></div></div><span class="pct-txt" style="color:var(--success);">${r.modelPct}%</span></div></td>
+      <td style="text-align:center;"><div class="mini-wrap"><div class="mini-bar"><div class="mini-fill" style="width:${r.qtyPct}%;background:var(--primary);"></div></div><span class="pct-txt" style="color:var(--primary);">${r.qtyPct}%</span></div></td>
+    </tr>`;
+  });
+
+  document.getElementById('ds-tbody').innerHTML = html;
+
+  // Footer (합계)
+  const lastRow = displayRows.length > 0 ? displayRows[displayRows.length - 1] : null;
+  const totalSku = statusFiltered.length;
+  document.getElementById('ds-tfoot').innerHTML = `<tr style="background:#d1fae5;font-weight:800;">
+    <td style="background:#bbf7d0;font-weight:800;">합계</td>
+    <td style="background:#bbf7d0;text-align:center;">-</td>
+    <td style="background:#bbf7d0;text-align:center;">${totalModels.toLocaleString()}</td>
+    <td style="background:#bbf7d0;text-align:center;">${totalSku.toLocaleString()}</td>
+    <td style="background:#bbf7d0;text-align:center;">${totalQty.toLocaleString()}</td>
+    <td style="background:#bbf7d0;text-align:center;">100%</td>
+    <td style="background:#bbf7d0;text-align:center;">100%</td>
+  </tr>`;
+}
+renderDailySummary();
+
+// Add click handler to date column header
+(function() {
+  const th = document.querySelector('#ds-table thead th:first-child');
+  th.style.cursor = 'pointer';
+  th.style.position = 'relative';
+  th.title = '클릭하여 날짜 필터';
+  th.onclick = openDsDateFilter;
+})();
 </script>
 </body>
 </html>
